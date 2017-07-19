@@ -67,7 +67,8 @@ int read_bootloader(char* fname, char* bootloader) {
 void print_usage(char* name) {
 	printf("Usage : %s [bootloader.file] [floppy.image] [stage2.bin]\n \
 		The name of stage2 should not exceed 12 characters and the\n \
-		filename extension should be 3 characters long.\n", name);
+		filename extension should be at max 3 characters long.\n",
+		name);
 }
 
 int read_4x_bpb(char* fname, struct BPB* bpb) {
@@ -91,14 +92,14 @@ int read_4x_bpb(char* fname, struct BPB* bpb) {
 void format_f_name(char* fname, char* out) {
 	// Formats the name given in fname to a length of 11 characters, not dot
 	// between file name and file extension name and padds the remaining
-	// space with zeros.
+	// space with spaces.
 	char* f_ending = strstr(fname, ".");
 	for (int i=0; i<11; i++) {
-		out[i] = '0';
+		out[i] = ' ';
 	}
 	out[12] = 0;
 	memcpy(out, fname, f_ending - fname);
-	memcpy(out+8, f_ending + 1, 3);
+	memcpy(out+8, f_ending + 1, strlen(f_ending+1));
 }
 
 char* array_in_array(char* haystack, char* needle, ssize_t size) {
@@ -141,9 +142,9 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 		
-	if (argv[3] + strlen(argv[3]) - strstr(argv[3], ".") != 4) {
+	if (argv[3] + strlen(argv[3]) - strstr(argv[3], ".") > 4) {
 		printf("Error, the filename extension of the second stage is\n \
-			not 3 bytes long.\n");
+			longer than 3 bytes long.\n");
 		return EXIT_FAILURE;
 	}
 	
@@ -163,6 +164,7 @@ int main(int argc, char* argv[]) {
 	if (read_4x_bpb(argv[2], &bpb) == -1) {
 		printf("Error while reading bpb from floppy file %s :(\n",
 		       argv[2]);
+		return EXIT_FAILURE;
 	}
 	
 	char* bootloader_fname = array_in_array(bootloader, "SecondStage",
