@@ -20,21 +20,13 @@
 ; function in the 512 bytes of this bootloader.
 
 ; MEMORY MAP
-; address		| descrdiption			| size
+; address		| description			| size
 
 ; 0x500			| bootloader			| 512 bytes
-; 0x700			| boot drive			| 1 byte
-; 0x701			| root dir start sector		| 1 byte
-; 0x702			| root dir size			| 2 bytes
 ; 0x1500		| stack				| 4096 bytes
 ; 0x2500		| root directory		| 7168 bytes (estimated)
 ; 0x4500 (estimated)	| first FAT 			| 4608 bytes (estimated)
 ; 0x7c00		| second stage			| Who knows?
-
-%define	BOOT_DRIVE 0x200
-%define	ROOT_START_SECTOR BOOT_DRIVE + 1	; 0x201
-%define ROOT_SIZE ROOT_START_SECTOR + 1		; 0x202
-%define FAT_POINTER ROOT_SIZE + 2
 
 %define ROOT_DIR_POINTER 0x2000	; Location of the root directory table right
 				; after the stack
@@ -128,35 +120,35 @@ go_on:
 	; SETUP STACK-FRAME
 	mov bp, sp
 
-	mov [BOOT_DRIVE], dl	; The bios leaves us the boot drive in dl
+	mov [BootDrive], dl	; The bios leaves us the boot drive in dl
 
 	sti			; Restore interupts
 
 	; Get root directory starting sector
 	; It's right after the FATs.
-	; ROOT_START_SECTOR = NumberOfFats * SectorsPerFat + ReservedForBoot
+	; RootStartSector = NumberOfFats * SectorsPerFat + ReservedForBoot
 	xor ax, ax
 	mov al, [NumberOfFats]
 	mul word [SectorsPerFat]
 	add ax, word [ReservedForBoot]
-	mov [ROOT_START_SECTOR], al
+	mov [RootStartSector], al
 
 	; Get root directory size in sectors
-	; ROOT_SIZE = (NumberOfRootDirEntrys * EntrySize) / SectorSize
+	; RootSize = (NumberOfRootDirEntrys * EntrySize) / SectorSize
 	mov ax, 32			; 32 bytes per entry
 	mul word [NumberOfRootDirEntrys]
 	div word [SectorSize]
-	mov [ROOT_SIZE], ax
+	mov [RootSize], ax
 
 	; Get FAT pointer
 	mul word [SectorSize]
 	add ax, ROOT_DIR_POINTER
-	mov word [FAT_POINTER], ax
+	mov word [FatPointer], ax
 
 	; Now load the root directory
-	mov ax, [ROOT_SIZE]
+	mov ax, [RootSize]
 	xor bx, bx
-	mov bl, [ROOT_START_SECTOR]
+	mov bl, [RootStartSector]
 	mov cx, ROOT_DIR_POINTER
 	call readsectors
 
@@ -164,7 +156,7 @@ go_on:
 	mov ax, [SectorsPerFat]
 	mov bx, 1			; FAT 1 starts at the second sector on
 					; the disk
-	mov cx, [FAT_POINTER]
+	mov cx, [FatPointer]
 	call readsectors
 
 	; Loop over all entrys of the root directory, search for the next
@@ -203,7 +195,7 @@ readsectors:
 	mov bx, [bp-6]		; read to es:[bp-6]
 
 	; ch, cl and dh are already set from lbachs
-	mov dl, [BOOT_DRIVE]
+	mov dl, [BootDrive]
 	mov ax, 0000001000000001b	; move 2 in ah and 1 in al
 	int 13h
 	jnc .read_next_sector
@@ -277,9 +269,9 @@ getNextCluster:
 	shr     ax, 1			; divide by two
 	add     cx, ax			; cluster size in fat12 is 12 bits,
 					; 3/2 bytes.
-					; So the next cluster is FAT_POINTER +
+					; So the next cluster is FatPointer +
 					; 3/2 the current cluster.
-	mov     bx, [FAT_POINTER]
+	mov     bx, [FatPointer]
 	add     bx, cx
 	mov     ax, [bx]		; read two bytes
 	test    dx, 1			; Test if even or odd cluster number and
@@ -301,13 +293,13 @@ cluster2LBA:
 
 	; Cluster Numbering starts at 2 so we substract 2 from the clusternumber
 	; to get zero-based clusternumbers
-	; LBA = Cluster * SectorsPerCluster + ROOT_START_SECTOR + ROOT_SIZE
+	; LBA = Cluster * SectorsPerCluster + RootStartSector + RootSize
 	sub ax, 2
 	xor cx, cx
 	mov cl, [SectorsPerCluster]
 	mul cx
-	add al, [ROOT_START_SECTOR]
-	add ax, [ROOT_SIZE]
+	add al, [RootStartSector]
+	add ax, [RootSize]
 
 	ret
 
@@ -369,7 +361,7 @@ cmp_f_names:
 	mov es, bx		; load to FILE_SEGMENT:0
 	xor bx, bx
 	call load_file
-	mov dl, [BOOT_DRIVE]	; Pass the boot drive to the next stage.
+	mov dl, [BootDrive]	; Pass the boot drive to the next stage.
 	jmp FILE_SEGMENT:0	; far jump to the next stage, we are done now.
 
 .cmp_done:
@@ -379,7 +371,12 @@ cmp_f_names:
 	file_name db "SecondStage",0	; Name of the file to load, will be
 					; replaced by the installer of the
 					; bootloader.
+	BootDrive db 0
+	RootStartSector db 0
+	RootSize db 0
+	FatPointer db 0
 
+	
 ; The bios loads exact 512 bytes. Here we fill this file to byte 510 with zeros
 ; and the add the boot signature.
 	times 510-($-$$) db 0	; Pad remainder of boot sector with 0s
