@@ -309,9 +309,6 @@ cluster2LBA:
 lbachs:
 	; This function converts a LBA address stored in ax to a chs address
 	; with the track/cylinder in ch, sector in cl and head in dh
-	push bp
-	mov bp, sp			; build stack frame
-	
 	xor dx, dx			; clean dx for division
 	div word [SectorsPerTrack]	; ax -> lba / spt 
 					; dx -> lba % spt 
@@ -325,8 +322,6 @@ lbachs:
 					; dl will be replaced later with the
 					; drive number
 	mov ch, al			; store cylinder in ch
-	
-	pop bp
 	ret
 
 	
