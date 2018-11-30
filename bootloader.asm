@@ -115,7 +115,6 @@ start:
 
 	jmp 0x050:go_on
 go_on:
-	mov ax, es
 	mov ds, ax
 	add ax, 100h		; The size of the bootloader is 512 bytes.
 				; The segment-registers go in 16-byte-steps.
@@ -275,26 +274,25 @@ getNextCluster:
 	mov cx, ax
 	mov dx, ax			; The current cluster is now in ax, cx
 					; and dx
-	shr     dx, 1			; divide by two
-	add     cx, dx			; cluster size in fat12 is 12 bits,
+	shr     ax, 1			; divide by two
+	add     cx, ax			; cluster size in fat12 is 12 bits,
 					; 3/2 bytes.
 					; So the next cluster is FAT_POINTER +
 					; 3/2 the current cluster.
 	mov     bx, [FAT_POINTER]
 	add     bx, cx
-	mov     dx, [bx]		; read two bytes
-	test    ax, 1			; Test if even or odd cluster number and
+	mov     ax, [bx]		; read two bytes
+	test    dx, 1			; Test if even or odd cluster number and
 					; extract the 12 bits of the cluster
 	jnz     .odd_cluster
 
 .even_cluster:
-	and dx, 0111111111111b	; get low 12 bits
+	and ax, 0111111111111b	; get low 12 bits
 	jmp .done
 
 .odd_cluster:
-	shr dx, 4		; move 4 bits right
+	shr ax, 4		; move 4 bits right
 .done:
-	mov ax, dx
 	ret
 
 
@@ -335,7 +333,6 @@ lbachs:
 loop_over_root:
 	; This function loops over all entrys of the root directory, loads the
 	; entry with the name stored in file_name to 050h:0 and jumps to it.
-	push bp
 	mov bp, sp
 	sub sp, 4
 	mov ax, [NumberOfRootDirEntrys]
@@ -348,48 +345,34 @@ loop_over_root:
 
 	add word [bp-4], 32
 	dec word [bp-2]
-.loop_over_root_done:
-	jz .loop_over_root_done	; At this point the file was not found. So we
-				; enter an endless loop.
-	jmp .loop_over_root_loop
+	jnz .loop_over_root_loop
+	jmp $	; At this point the file was not found. So we
+		; enter an endless loop.
 
 cmp_f_names:
 	; This function compares the String with its address in ax to the string
 	; file_name, loads the file if the names are matching and jumps to it.
-	push bp
-	mov bp, sp
-	sub sp, 6
-	mov word [bp-2], file_name	; Save pointer to file name
-	mov [bp-4], ax			; Save pointer to current file name
-	mov [bp-6], ax			; twice.
-
-.cmp_loop:
-	mov si, [bp-4]
-	mov al, [si]
-	mov si, [bp-2]
-	mov ah, [si]
-	or ah, ah		; Check for the zero at the end of the file name
-	je .cmp_success		; if the loop reached it, we found our file.
-	cmp al, ah		; Check if the current elements in the strings
-				; match.
+	mov cx, 11
+	mov si, ax
+	mov di, file_name
+	repe cmpsb
 	jne .cmp_done
-	inc word [bp-2]		; Increase string pointers
-	inc word [bp-4]
-	jmp .cmp_loop
 
 .cmp_success:
-	mov ax, FILE_SEGMENT
-	mov es, ax		; load to FILE_SEGMENT:0
-	mov si, [bp-6]		; start address of the root directory entry
-	mov ax, [si+26]
+	;; The si register holds the address of the root directory table entry
+	;; of the file to load + 11
+	;; The address of the first cluster of the file to load is the address
+	;; of the root directory table entyr + 26
+	;; [si+15] holds the first cluster.
+	mov ax, [si+15]
+	mov bx, FILE_SEGMENT
+	mov es, bx		; load to FILE_SEGMENT:0
 	xor bx, bx
 	call load_file
 	mov dl, [BOOT_DRIVE]	; Pass the boot drive to the next stage.
 	jmp FILE_SEGMENT:0	; far jump to the next stage, we are done now.
 
 .cmp_done:
-	add sp, 6
-	pop bp
 	ret
 
 ; DATA SEGMENT
