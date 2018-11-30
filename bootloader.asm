@@ -16,7 +16,7 @@
 ; This bootloader loads a file with the name stored in the string file_name to
 ; 07c0:0 and executes it. The boot sector will be passed in the dl register.
 ; If there is an error while reading the file or there is no file with this
-; name, no error will be printed, since I was not able to also place a print 
+; name, no error will be printed, since I was not able to also place a print
 ; function in the 512 bytes of this bootloader.
 
 ; MEMORY MAP
@@ -38,10 +38,10 @@
 
 %define ROOT_DIR_POINTER 0x2000	; Location of the root directory table right
 				; after the stack
-				
+
 %define	FILE_SEGMENT 0x07c0	; We load the second stage at 07c0h:0
 				; So we have almost a half MiB
-				
+
 %define MAX_READ_ATTEMPTS 5	; This number will be found at many bootloaders.
 				; It is a relict from the good old times™
 				; Back then the people of the stone age stored
@@ -72,7 +72,7 @@ LogicalSectors:		dw 2880		; 1.440 MB Floopy with 512 bytes
 					; sectors = 2880 Sectors
 ; The next byte describes the type of the used devices. More than one devices
 ; per type are possible.
-; 0xF0	3.5 inch, 2.88 MB, 2 heads, 36 sectors / 
+; 0xF0	3.5 inch, 2.88 MB, 2 heads, 36 sectors /
 ;	3.5 inch, 1.44 MB, 2 heads, 18 sectors
 ; 0xF9	3.5 inch, 720 KB, 2 heads, 9 sectors /
 ;	5.25 inch, 1.2 MB, 2 heads, 15 sectors
@@ -102,12 +102,12 @@ start:
 	; stage at the current location.
 	; The new location will be 0x50:0
 	cld 			; Clear direction flag, move forward !!!
-	
+
 	mov ax, 07C0h		; 07C0h:0000h is the point we are loaded to
 	mov ds, ax		; Setup source segment
 	mov ax, 050h
 	mov es, ax		; Setup destination segment
-	
+
 	xor di, di		; Destination address
 	xor si, si		; Source address
 	mov cx, 256		; Move 256 words
@@ -122,17 +122,17 @@ go_on:
 				; We assume a size of 4096 bytes for our code.
 				; So we add (4096/16) to it, to go after our
 				; bootloader.
-							
+
 	mov ss, ax
-	mov sp, 4096		; Set 4K of stack. 
+	mov sp, 4096		; Set 4K of stack.
 
 	; SETUP STACK-FRAME
 	mov bp, sp
 
 	mov [BOOT_DRIVE], dl	; The bios leaves us the boot drive in dl
-	
+
 	sti			; Restore interupts
-	
+
 	; Get root directory starting sector
 	; It's right after the FATs.
 	; ROOT_START_SECTOR = NumberOfFats * SectorsPerFat + ReservedForBoot
@@ -141,37 +141,37 @@ go_on:
 	mul word [SectorsPerFat]
 	add ax, word [ReservedForBoot]
 	mov [ROOT_START_SECTOR], al
-	
+
 	; Get root directory size in sectors
 	; ROOT_SIZE = (NumberOfRootDirEntrys * EntrySize) / SectorSize
-	mov ax, 32			; 32 bytes per entry 
+	mov ax, 32			; 32 bytes per entry
 	mul word [NumberOfRootDirEntrys]
 	div word [SectorSize]
 	mov [ROOT_SIZE], ax
-	
+
 	; Get FAT pointer
 	mul word [SectorSize]
 	add ax, ROOT_DIR_POINTER
 	mov word [FAT_POINTER], ax
-	
+
 	; Now load the root directory
 	mov ax, [ROOT_SIZE]
 	xor bx, bx
 	mov bl, [ROOT_START_SECTOR]
 	mov cx, ROOT_DIR_POINTER
 	call readsectors
-	
+
 	; Load the first FAT into memory.
 	mov ax, [SectorsPerFat]
 	mov bx, 1			; FAT 1 starts at the second sector on
 					; the disk
 	mov cx, [FAT_POINTER]
 	call readsectors
-	
+
 	; Loop over all entrys of the root directory, search for the next
 	; stage and load it
 	call loop_over_root
-	
+
 readsectors:
 	; read n sectors starting from LBA with n in ax and LBA in bx to the
 	; segment:address stored in es:cx
@@ -182,7 +182,7 @@ readsectors:
 	mov [bp-4], bx		; LBA of starting sector
 	mov [bp-6], cx		; Where to load
 	mov word [bp-8], MAX_READ_ATTEMPTS
-	
+
 .read_loop:
 	; Now we want to read data from the drive. As said earlyer we make 5
 	; attempts, so the motor has enough time to reach the correct speed.
@@ -200,7 +200,7 @@ readsectors:
 	; and 80 tracks/cylinders, each with 18 sectors of 512 bytes.
 	mov ax, [bp-4]
 	call lbachs
-	
+
 	mov bx, [bp-6]		; read to es:[bp-6]
 
 	; ch, cl and dh are already set from lbachs
@@ -208,13 +208,13 @@ readsectors:
 	mov ax, 0000001000000001b	; move 2 in ah and 1 in al
 	int 13h
 	jnc .read_next_sector
-	
+
 	dec word [bp-8]		; If reading wasn't successful after the 5ft try
 .read_error:
 	jz .read_error		; give up
 	jmp .read_loop
-	
-	
+
+
 .read_next_sector:
 	dec word [bp-2]
 	jz .read_done		; Zero sectors remaining
@@ -223,8 +223,8 @@ readsectors:
 	add [bp-6], ax
 	mov word [bp-8], MAX_READ_ATTEMPTS
 	jmp .read_loop
-	
-.read_done:	
+
+.read_done:
 	add sp, 8
 	pop bp
 	ret
@@ -238,18 +238,18 @@ load_file:
 
 	mov [bp-2], ax			; save cluster
 	mov [bp-4], bx			; save file_pointer
-	
-.load_file_loop:	
+
+.load_file_loop:
 	mov ax, [bp-2]
 	call cluster2LBA
-	
+
 	; Read cluster into memory
 	mov bx, ax
 	xor ax, ax
 	mov al, [SectorsPerCluster]
 	mov cx, [bp-4]
 	call readsectors
-	
+
 	; Add the size of a cluster to the file_pointer
 	xor ax, ax
 	mov al, [SectorsPerCluster]
@@ -268,7 +268,7 @@ load_file:
 	pop bp
 	ret
 
-	
+
 getNextCluster:
 	;; Get the next cluster for the cluster in ax
 	;; Returns the next cluster in ax.
@@ -276,7 +276,7 @@ getNextCluster:
 	mov dx, ax			; The current cluster is now in ax, cx
 					; and dx
 	shr     dx, 1			; divide by two
-	add     cx, dx			; cluster size in fat12 is 12 bits, 
+	add     cx, dx			; cluster size in fat12 is 12 bits,
 					; 3/2 bytes.
 					; So the next cluster is FAT_POINTER +
 					; 3/2 the current cluster.
@@ -286,7 +286,7 @@ getNextCluster:
 	test    ax, 1			; Test if even or odd cluster number and
 					; extract the 12 bits of the cluster
 	jnz     .odd_cluster
-          
+
 .even_cluster:
 	and dx, 0111111111111b	; get low 12 bits
 	jmp .done
@@ -310,16 +310,16 @@ cluster2LBA:
 	mul cx
 	add al, [ROOT_START_SECTOR]
 	add ax, [ROOT_SIZE]
-		
+
 	ret
-	
+
 lbachs:
 	; This function converts a LBA address stored in ax to a chs address
 	; with the track/cylinder in ch, sector in cl and head in dh
 	xor dx, dx			; clean dx for division
-	div word [SectorsPerTrack]	; ax -> lba / spt 
-					; dx -> lba % spt 
-	inc dx	
+	div word [SectorsPerTrack]	; ax -> lba / spt
+					; dx -> lba % spt
+	inc dx
 	mov cl, dl			; sectors = lba% spt + 1
 
 	xor dx, dx			; clean dx for division
@@ -331,7 +331,7 @@ lbachs:
 	mov ch, al			; store cylinder in ch
 	ret
 
-	
+
 loop_over_root:
 	; This function loops over all entrys of the root directory, loads the
 	; entry with the name stored in file_name to 050h:0 and jumps to it.
@@ -341,11 +341,11 @@ loop_over_root:
 	mov ax, [NumberOfRootDirEntrys]
 	mov [bp-2], ax
 	mov word [bp-4], ROOT_DIR_POINTER
-	
+
 .loop_over_root_loop:
 	mov ax, [bp-4]
 	call cmp_f_names
-	
+
 	add word [bp-4], 32
 	dec word [bp-2]
 .loop_over_root_done:
@@ -362,13 +362,13 @@ cmp_f_names:
 	mov word [bp-2], file_name	; Save pointer to file name
 	mov [bp-4], ax			; Save pointer to current file name
 	mov [bp-6], ax			; twice.
-	
+
 .cmp_loop:
 	mov si, [bp-4]
 	mov al, [si]
 	mov si, [bp-2]
 	mov ah, [si]
-	or ah, ah		; Check for the zero at the end of the file name 
+	or ah, ah		; Check for the zero at the end of the file name
 	je .cmp_success		; if the loop reached it, we found our file.
 	cmp al, ah		; Check if the current elements in the strings
 				; match.
@@ -386,12 +386,12 @@ cmp_f_names:
 	call load_file
 	mov dl, [BOOT_DRIVE]	; Pass the boot drive to the next stage.
 	jmp FILE_SEGMENT:0	; far jump to the next stage, we are done now.
-	
+
 .cmp_done:
 	add sp, 6
 	pop bp
 	ret
-	
+
 ; DATA SEGMENT
 	file_name db "SecondStage",0	; Name of the file to load, will be
 					; replaced by the installer of the
