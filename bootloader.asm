@@ -256,9 +256,22 @@ load_file:
 	mov cx, [SectorSize]
 	mul cx
 	add [bp-4], ax
-		
-	; Get next cluster
+
 	mov ax, [bp-2]
+	call getNextCluster
+	mov [bp-2], ax
+	cmp ax, 0xFFF		; Test for end of file
+	jne .load_file_loop
+
+	; Else we are done
+	add sp, 4
+	pop bp
+	ret
+
+	
+getNextCluster:
+	;; Get the next cluster for the cluster in ax
+	;; Returns the next cluster in ax.
 	mov cx, ax
 	mov dx, ax			; The current cluster is now in ax, cx
 					; and dx
@@ -277,19 +290,13 @@ load_file:
 .even_cluster:
 	and dx, 0111111111111b	; get low 12 bits
 	jmp .done
-	
+
 .odd_cluster:
 	shr dx, 4		; move 4 bits right
-
 .done:
-	mov [bp-2], dx
-	cmp dx, 0xFFF		; Test for end of file
-	jne .load_file_loop
-	
-	; Else we are done	
-	add sp, 4
-	pop bp
+	mov ax, dx
 	ret
+
 
 cluster2LBA:
 	; This function returns the LBA from the cluster in ax in ax
