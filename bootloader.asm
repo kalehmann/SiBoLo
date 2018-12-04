@@ -125,7 +125,7 @@ go_on:
 	xor ax, ax
 	mov al, [NumberOfFats]
 	mul word [SectorsPerFat]
-	add ax, word [ReservedForBoot]
+	add ax, [ReservedForBoot]
 	mov [RootStartSector], al
 
 	;; Get the size of the root directory table in sectors.
@@ -197,7 +197,8 @@ readsectors:
 	dec word [bp-8]
 	jnz .read_loop
 	;; Enter an endless loop if reading wasn't successful in the fifth try.
-	jmp $
+	mov si, ReadError
+	call print_error
 
 .read_next_sector:
 	dec word [bp-2]
@@ -340,7 +341,8 @@ loop_over_root:
 	dec word [bp-2]
 	jnz .loop_over_root_loop
 	;; At this point the file was not found, enter an endless loop
-	jmp $
+	mov si, FNF
+	call print_error
 
 cmp_f_names:
 	;; This function compares the string with from address in ax to the string
@@ -371,10 +373,24 @@ cmp_f_names:
 .cmp_done:
 	ret
 
+print_error:
+	;; Prints the error string from the address in the si register.
+	;; It does not return.
+	mov ah, 0xe
+	xor bx, bx
+.loop:
+	lodsb
+	int 0x10
+	test al, al
+	jnz .loop
+	jmp $
+
 ;; DATA SEGMENT
 	;; The name of the file to load, this will be replaced later by the
 	;; installer of the bootloader.
+	FNF db "Not found: "
 	FileName db "SecondStage", 0
+	ReadError db "ReadError", 0
 	BootDrive db 0
 	RootStartSector db 0
 	RootSize db 0
