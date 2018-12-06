@@ -389,7 +389,7 @@ print_error:
 	;; The name of the file to load, this will be replaced later by the
 	;; installer of the bootloader.
 	FNF db "Not found: "
-	FileName db "SecondStage", 0
+	FileName db "PLACEHOLDER", 0
 	ReadError db "ReadError", 0
 	BootDrive db 0
 	RootStartSector db 0
