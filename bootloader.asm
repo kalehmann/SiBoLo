@@ -335,7 +335,7 @@ loop_over_root:
 
 .loop_over_root_loop:
 	mov ax, [bp-4]
-	call cmp_f_names
+	call process_entry
 
 	add word [bp-4], 32
 	dec word [bp-2]
@@ -344,16 +344,18 @@ loop_over_root:
 	mov si, FNF
 	call print_error
 
-cmp_f_names:
-	;; This function compares the string with from address in ax to the string
-	;; FileName and load the file if the names are matching and jumps to it.
+process_entry:
+	;; This function processes an entry of the root directory table with its
+	;; address in ax and loads the file describe by the entry if the name
+	;; matches the 8.3 name stored in FileName.
 	mov cx, 11
 	mov si, ax
 	mov di, FileName
 	repe cmpsb
-	jne .cmp_done
+	je .pass_control
+	ret
 
-.cmp_success:
+.pass_control:
 	;; The si register holds the address of the root directory table entry
 	;; of the file to load + 11
 	;; The address of the first cluster of the file to load is the address
@@ -369,9 +371,6 @@ cmp_f_names:
 	mov dl, [BootDrive]
 	;; Far jump to the next stage
 	jmp FILE_SEGMENT:0
-
-.cmp_done:
-	ret
 
 print_error:
 	;; Prints the error string from the address in the si register.
