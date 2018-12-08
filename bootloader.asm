@@ -22,16 +22,16 @@
 ;; MEMORY MAP
 ;; Description          | Start address	     | Size
 ;; -------------------------------------------------------------------
-;; This bootloader      |              0x500 |              512 bytes
-;; Stack                |             0x1000 |             4096 bytes
-;; Root directory table |             0x2000 | (estimated) 7168 bytes
-;; First FAT		| (estimated) 0x3c00 | (estimated) 4608 bytes
+;; This bootloader      |              0x600 |              512 bytes
+;; Stack                |             0x1100 |             4096 bytes
+;; Root directory table |             0x2200 | (estimated) 7168 bytes
+;; First FAT		| (estimated) 0x3d00 | (estimated) 4608 bytes
 ;; Loaded program	|             0x7c00 |
 
 BITS 16
 
 ;; Location of the root directory table right after the stack
-%define ROOT_DIR_POINTER 0x2500
+%define ROOT_DIR_POINTER 0x2200
 ;; Load the file to 0x7c0:0. This is also the location the BIOS loads a
 ;; bootloader to.
 %define	FILE_SEGMENT 0x7c0
@@ -98,14 +98,14 @@ start:
 	mov ds, ax
 	xor si, si
 	;; Setup destination segment and address
-	mov ax, 0x50
+	mov ax, 0x60
 	mov es, ax
 	xor di, di
 	;; Move 256 words
 	mov cx, 256
 	rep movsw
 
-	jmp 0x50:go_on
+	jmp 0x60:go_on
 go_on:
 	mov ds, ax
 	mov ax, 0x8c0
