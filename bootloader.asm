@@ -29,7 +29,73 @@
 ;; Loaded program	|             0x7c00 |
 
 BITS 16
+	
+%macro cluster2LBA 0
+	;; This macro calculates the LBA from the cluster in ax and saves it in
+	;; the ax register.
+	;; Cluster numbering starts at 2, therefore first subtract 2 from the
+	;; cluster number to get zero-based cluster numbers.
+	;; LBA = Cluster * SectorsPerCluster + RootStartSector + RootSize
+	sub ax, 2
+	xor cx, cx
+	mov cl, [SectorsPerCluster]
+	mul cx
+	add al, [RootStartSector]
+	add ax, [RootSize]
+%endmacro
 
+%macro lbachs 0
+	;; This macro converts a LBA address stored in ax to a chs address
+	;; and saves the track/cylinder in the ch register, the sector in the
+	;; cl register and the head in the dh register.
+	xor dx, dx
+	div word [SectorsPerTrack]
+	;; ax -> lba / spt
+	;; dx -> lba % spt
+	inc dx
+	;; sectors = lba mod spt + 1
+	mov cl, dl
+	xor dx, dx
+	div word [NumberOfHeads]
+	;; ax -> lba / (spt * heads)
+	;; dx -> (lba / spt) % heads
+	;; Save the head to dh
+	mov dh, dl
+	;; Save the cylinder to ch
+	mov ch, al
+%endmacro
+
+%macro getNextCluster 0
+	;; Get the next cluster for the cluster in ax
+	;; Saves the next cluster in ax.
+	mov cx, ax
+	mov dx, ax
+	;; The current cluster is now in ax, cx and dx
+	;; Divide ax by two
+	shr     ax, 1
+	;; The cluster size in FAT12 is 12 bits, 3/2 bytes. The next cluster
+	;; is the FAT pointer + 3/2 the current cluster.
+	add     cx, ax
+	mov     bx, [FatPointer]
+	add     bx, cx
+	;; Read two bytes
+	mov     ax, [bx]
+	;; Test if even or odd cluster number and extract the 12 bits of the
+	;; cluster.
+	test    dx, 1
+	jnz     %%odd_cluster
+
+%%even_cluster:
+	;; Get the least significant 12 bits.
+	and ax, 0111111111111b
+	jmp %%done
+
+%%odd_cluster:
+	;; Shift ax 4 bits right to get the 12 most significant bits.
+	shr ax, 4
+%%done:
+%endmacro
+	
 ;; Location of the root directory table right after the stack
 %define ROOT_DIR_POINTER 0x2200
 ;; Load the file to 0x7c0:0. This is also the location the BIOS loads a
@@ -185,14 +251,14 @@ readsectors:
 	;; For this bootloader a 3.5" High Density floppy with 1.44Mb and 80
 	;; tracks/cylinders, each with 18 sectors of 512 bytes is simulated.
 	mov ax, [bp-4]
-	call lbachs
+	lbachs
 	;; Read to es:[bp-6]
 	mov bx, [bp-6]
 	;; ch, cl and dh are already set from the call to the lbachs function
 	mov dl, [BootDrive]
 	;; Move 2 in ah and 1 in al
 	mov ax, 0000001000000001b
-	int 13h
+	int 0x13
 	jnc .read_next_sector
 	dec word [bp-8]
 	jnz .read_loop
@@ -227,7 +293,7 @@ load_file:
 
 .load_file_loop:
 	mov ax, [bp-2]
-	call cluster2LBA
+	cluster2LBA
 
 	;; Read cluster into memory
 	mov bx, ax
@@ -244,7 +310,7 @@ load_file:
 	add [bp-4], ax
 
 	mov ax, [bp-2]
-	call getNextCluster
+	getNextCluster
 	mov [bp-2], ax
 	;; Test for the special "end of file" marker
 	cmp ax, 0xFFF
@@ -253,75 +319,6 @@ load_file:
 	add sp, 4
 	pop bp
 	ret
-
-
-getNextCluster:
-	;; Get the next cluster for the cluster in ax
-	;; Returns the next cluster in ax.
-	mov cx, ax
-	mov dx, ax
-	;; The current cluster is now in ax, cx and dx
-	;; Divide ax by two
-	shr     ax, 1
-	;; The cluster size in FAT12 is 12 bits, 3/2 bytes. The next cluster
-	;; is the FAT pointer + 3/2 the current cluster.
-	add     cx, ax
-	mov     bx, [FatPointer]
-	add     bx, cx
-	;; Read two bytes
-	mov     ax, [bx]
-	;; Test if even or odd cluster number and extract the 12 bits of the
-	;; cluster.
-	test    dx, 1
-	jnz     .odd_cluster
-
-.even_cluster:
-	;; Get the least significant 12 bits.
-	and ax, 0111111111111b
-	jmp .done
-
-.odd_cluster:
-	;; Shift ax 4 bits right to get the 12 most significant bits.
-	shr ax, 4
-.done:
-	ret
-
-
-cluster2LBA:
-	;; This function returns the LBA from the cluster in ax in ax
-
-	;; Cluster numbering starts at 2, therefore first subtract 2 from the
-	;; cluster number to get zero-based cluster numbers.
-	;; LBA = Cluster * SectorsPerCluster + RootStartSector + RootSize
-	sub ax, 2
-	xor cx, cx
-	mov cl, [SectorsPerCluster]
-	mul cx
-	add al, [RootStartSector]
-	add ax, [RootSize]
-
-	ret
-
-lbachs:
-	;; This function converts a LBA address stored in ax to a chs address
-	;; with the track/cylinder in ch, sector in cl and head in dh
-	xor dx, dx
-	div word [SectorsPerTrack]
-	;; ax -> lba / spt
-	;; dx -> lba % spt
-	inc dx
-	;; sectors = lba mod spt + 1
-	mov cl, dl
-	xor dx, dx
-	div word [NumberOfHeads]
-	;; ax -> lba / (spt * heads)
-	;; dx -> (lba / spt) % heads
-	;; Save the head to dh
-	mov dh, dl
-	;; Save the cylinder to ch
-	mov ch, al
-	ret
-
 
 loop_over_root:
 	;; This function loops over all entries of the root directory, loads the
