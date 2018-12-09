@@ -234,7 +234,7 @@ readsectors:
 	mov [bp-4], bx
 	mov [bp-6], cx
 	mov word [bp-8], MAX_READ_ATTEMPTS
-
+	
 .read_loop:
 	;; Lets read data from the drive. There are at maximum 5 attempts to
 	;; read, so that the motor has enough time to reach the correct speed.
@@ -250,6 +250,9 @@ readsectors:
 	;; 1-indexed.
 	;; For this bootloader a 3.5" High Density floppy with 1.44Mb and 80
 	;; tracks/cylinders, each with 18 sectors of 512 bytes is simulated.
+	xor ah, ah
+	mov dl, [BootDrive]
+	int 0x13
 	mov ax, [bp-4]
 	lbachs
 	;; Read to es:[bp-6]
@@ -381,7 +384,7 @@ print_error:
 	jnz .loop
 	jmp $
 
-;; DATA SEGMENT
+;; DATA
 	;; The name of the file to load, this will be replaced later by the
 	;; installer of the bootloader.
 	FNF db "Not found: "
@@ -391,7 +394,6 @@ print_error:
 	RootStartSector db 0
 	RootSize db 0
 	FatPointer db 0
-
 
 	;; The bios loads exact 512 bytes. Fill this file with zeros to byte 510.
 	times 510-($-$$) db 0
