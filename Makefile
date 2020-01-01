@@ -10,7 +10,7 @@ QEMU_FLOPPY_DRIVE_FLAGS = -drive if=floppy,index=0,format=raw
 BOOTLOADER_BINARY = bootloader.bin
 BOOTLOADER_SOURCE = bootloader.asm
 
-FILENAME_OFFSET = 480
+FILENAME_OFFSET = 498
 
 TESTCODE_BINARY = TESTCODE.BIN
 TESTCODE_SOURCE = tests/testcode.asm
