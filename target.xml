@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- See:
+     https://sourceware.org/bugzilla/show_bug.cgi?id=22869
+     https://stackoverflow.com/a/55246894
+
+     In short qemu reports i386 as target architecture to gdb and gdb sees
+     i386 as superset to i8086. Therefore `set architecture i8086` has no
+     effect. This file provides a simple target description telling gdb to use
+     the i8086 architecture.
+     
+     See https://www-zeuthen.desy.de/unix/unixguide/infohtml/gdb/Target-Description-Format.html
+     for details on the target description format.
+
+     Load the file in gdb with `set tdesc filename <path>` -->
+<!DOCTYPE target SYSTEM "gdb-target.dtd">
+<target>
+    <architecture>i8086</architecture>
+</target>
