@@ -8,37 +8,65 @@ More information about the project is [available on my blog](https://blog.kalehm
 
 ## Usage
 
-### Building
+### Build process
 
-First the binaries of the bootloader and its installer must be build. To do so
-**gcc** and **nasm** have to be installed.
+To build the bootloader [The Netwide Assembler (nasm)](https://nasm.us/) has to
+be installed.
 
-The build process is started with the include _Makefile_ by simply running
-`make`
+The bootloader binary (`bootloader.bin`) can be built with
 
-### Creating a floppy image
-
-Creating a floppy image can be done using the _mkfs.fat_ utility. The image can
-be mounted afterwards and the second stage copied onto it:
-
-``` bash
-mkfs.msdos -C -v floppy.flp 1440
-LOOP=$(losetup -f)
-losetup ${LOOP} floppy.flp
-mkdir -p loop_mount
-mount  /dev/loop0 loop_mount/
-cp MYCOOLOS.BIN loop_mount/
-sync
-umount loop_mount
-rm -Rf loop_mount
-losetup -D
+```
+make
 ```
 
-After that, the bootloader can be written on the image with the included
-installer and configured to load *MYCOOLOS.BIN*
+### Configuring the bootloader
 
-``` bash
-./sibolo-install bootloader.bin floppy.flp MYCOOLOS.BIN
+The bootloader needs to know the
+[8.3 or short filename](https://en.wikipedia.org/wiki/8.3_filename)
+of the file it should boot. The filename needs to be written to the offset 498
+of the bootloader.
+
+This can be done with the following command:
+
+```
+echo "TEST    BIN" | dd of=<bootloader binary> conv=notrunc  bs=1 count=11 seek=498
 ```
 
-**Note** that the name of the file that the bootloader loads needs to comply with the 8.3 format. The length of the base name must not exceed 8 bytes and the length of the file extension must not exceed 3 bytes. All letters must be upper case.
+### Write the bootloader to an image
+
+The bootloader can be written to an image with **dd**:
+
+```
+dd if=<bootloader binary> of=<image file> conv=notrunc  bs=1512 count=1
+```
+
+## Development
+
+### Debugging
+
+The bootloader can be debugged with qemu and gdb.
+
+In one terminal window execute
+
+```
+make debug
+```
+
+and in another terminal window connect with gdb using:
+
+```
+gdb \
+    -ex "target remote :1234" \
+    -ex "set tdesc filename target.xml" \
+    -ex "break *0x7c00" \
+    -ex "layout asm" \
+    -ex "set disassembly-flavor intel" \
+    -ex "continue"
+```
+
+### Testing
+
+The project has build processes for three floppy images and testcode to verify
+that the bootloader works.
+
+The test process is documented in the [`tests` directory](tests/README.md).
