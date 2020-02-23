@@ -37,7 +37,7 @@ echo "TEST    BIN" | dd of=<bootloader binary> conv=notrunc  bs=1 count=11 seek=
 The bootloader can be written to an image with **dd**:
 
 ```
-dd if=<bootloader binary> of=<image file> conv=notrunc  bs=1512 count=1
+dd if=<bootloader binary> of=<image file> conv=notrunc  bs=512 count=1
 ```
 
 ## Development
