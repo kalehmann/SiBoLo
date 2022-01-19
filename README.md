@@ -4,7 +4,7 @@ The name SiBoLo is an acronym for simple bootloader.
 SiBoLo is a simple single staged bootloader for fat12 formatted floppys, which
 loads a single file from by its name.
 
-More information about the project is [available on my blog](https://blog.kalehmann.de/blog/2016/07/20/simple-boot-loader.html).
+More information about the project is [available on my blog](https://blog.kalehmann.de/blog/2017/07/20/simple-boot-loader.html).
 
 ## Usage
 
