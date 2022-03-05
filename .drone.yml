@@ -1,0 +1,29 @@
+---
+kind: 'pipeline'
+name: 'update dump server'
+type: 'docker'
+
+steps:
+        - name: 'Update server info'
+          image: 'registry.kalehmann.de/git'
+          commands:
+                  - 'git update-server-info'
+        - name: 'Deploy'
+          image: 'registry.kalehmann.de/lftp'
+          commands:
+                  - 'lftp -e "
+                        set ftp:ssl-force true;
+                        set ssl:verify-certificate yes;
+                        open -u $${USER},$${PASSWORD} $${SERVER};
+                        mirror --reverse --delete $(pwd)/.git public_html/keller-kalehmann-de/git/sibolo.git;
+                        exit;"'
+          environment:
+                  USER:
+                          from_secret: 'ftp_user'
+                  PASSWORD:
+                          from_secret: 'ftp_password'
+                  SERVER:
+                          from_secret: 'ftp_server'
+          depends_on:
+                  - 'Update server info'
+...
